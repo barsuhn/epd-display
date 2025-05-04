@@ -24,9 +24,16 @@ static_cell = "2.1.0"
 
 embedded-graphics = { version = "0.8.1", features = ["defmt"] }
 
+[lib]
+name = "display"
+path = "src/lib.rs"
+test = false
+doctest = false
+bench = false
+
 [[bin]]
 name = "display"
-path = "src/main.rs"
+path = "src/bin/main.rs"
 test = false
 doctest = false
 bench = false
