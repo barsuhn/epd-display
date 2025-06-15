@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2021 Jedidiah Buck McCready
+Copyright (c) 2025 Bernd Barsuhn
 
 Permission is hereby granted, free of charge, to any
 person obtaining a copy of this software and associated
