@@ -6,6 +6,7 @@ mod bitmap_buffer;
 pub mod color;
 pub mod display_orientation;
 pub mod display_spi;
+pub mod display_demo;
 pub mod epd_2in66b;
 
 #[macro_export]
