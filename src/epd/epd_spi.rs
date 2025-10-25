@@ -4,9 +4,9 @@ use embassy_rp::spi::Instance as SpiInstance;
 use embassy_rp::gpio::Pin;
 use embassy_time::{Duration, Timer};
 
-use crate::display_spi::DisplaySpi;
+use super::display_spi::DisplaySpi;
 
-pub struct Epd<SPI>
+pub struct EpdSpi<SPI>
 where
     SPI: SpiInstance + 'static,
 {
@@ -16,7 +16,7 @@ where
     rst: Output<'static>,
 }
 
-impl<SPI> Epd<SPI>
+impl<SPI> EpdSpi<SPI>
 where
     SPI: SpiInstance + 'static,
 {
@@ -29,7 +29,7 @@ where
         let dc = Output::new(dc_pin, Level::High);
         let rst = Output::new(rst_pin, Level::High);
 
-        Epd { spi, dc, rst, busy }
+        EpdSpi { spi, dc, rst, busy }
     }
 
     pub fn is_busy(&self) -> bool {

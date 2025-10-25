@@ -7,10 +7,8 @@ use embedded_graphics::{
     text::{Alignment, Text},
 };
 
-use crate::{
-    color::ThreeColor,
-    epd_2in66b::Epd2in66b,
-};
+use crate::epd::three_color::ThreeColor;
+use crate::epd::epd_2in66b::Epd2in66b;
 
 pub fn draw_demo(display: &mut Epd2in66b<SPI1>) {
     let w = display.width() as u32;

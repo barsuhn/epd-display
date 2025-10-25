@@ -11,8 +11,8 @@ use embassy_time::Timer;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
-use display::display_spi::DisplaySpi;
-use display::epd_2in66b::Epd2in66b;
+use display::epd::display_spi::DisplaySpi;
+use display::epd::epd_2in66b::Epd2in66b;
 use display::display_demo::draw_demo;
 
 static mut CORE1_STACK: Stack<40960> = Stack::new();

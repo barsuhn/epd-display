@@ -8,12 +8,10 @@ use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::prelude::*;
 
-use crate::display_orientation::DisplayOrientation;
-use crate::display_spi::DisplaySpi;
-use crate::color::ThreeColor;
-use crate::epd::Epd;
-use crate::{BitmapBufferType, bitmap_buffer};
-
+use super::display_orientation::DisplayOrientation;
+use super::display_spi::DisplaySpi;
+use super::three_color::ThreeColor;
+use super::epd_spi::EpdSpi;
 
 const WIDTH: usize = 152;
 const HEIGHT: usize = 296;
@@ -22,10 +20,10 @@ pub struct Epd2in66b<SPI>
 where
     SPI: SpiInstance + 'static,
 {
-    epd: Epd<SPI>,
+    epd: EpdSpi<SPI>,
     orientation: DisplayOrientation,
-    bw_buffer: BitmapBufferType!(WIDTH, HEIGHT),
-    chromatic_buffer: BitmapBufferType!(WIDTH, HEIGHT),
+    bw_buffer: bitmap_buffer_type!(WIDTH, HEIGHT),
+    chromatic_buffer: bitmap_buffer_type!(WIDTH, HEIGHT),
 }
 
 // public API
@@ -38,7 +36,7 @@ where
                busy_pin: Peri<'static, impl Pin>,
                dc_pin: Peri<'static, impl Pin>,
                rst_pin: Peri<'static, impl Pin>) -> Self {
-        let epd = Epd::new(spi, busy_pin, dc_pin, rst_pin);
+        let epd = EpdSpi::new(spi, busy_pin, dc_pin, rst_pin);
         let bw_buffer = bitmap_buffer!(WIDTH, HEIGHT);
         let chromatic_buffer = bitmap_buffer!(WIDTH, HEIGHT);
         let orientation = DisplayOrientation::Landscape;
