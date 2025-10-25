@@ -1,0 +1,27 @@
+[package]
+name = "wifi-demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+epd-display = { path = "../epd-display" }
+embassy-executor = { workspace = true }
+embassy-time = { workspace = true }
+embassy-rp = { workspace = true }
+
+defmt = { workspace = true }
+defmt-rtt = { workspace = true }
+static_cell = { workspace = true }
+portable-atomic = { workspace = true }
+
+cortex-m-rt = { workspace = true }
+panic-probe = { workspace = true }
+
+embedded-graphics = { workspace = true }
+
+[[bin]]
+name = "display"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false

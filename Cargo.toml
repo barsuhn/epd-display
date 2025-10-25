@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "display-demo",
+    "wifi-demo",
     "epd-display"
 ]
 default-members=[ "display-demo" ]
