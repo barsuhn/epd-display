@@ -1,0 +1,17 @@
+[package]
+name = "epd-display"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+embassy-time = { workspace = true }
+embassy-rp = { workspace = true }
+
+embedded-graphics = { workspace = true }
+
+[lib]
+name = "epd_display"
+path = "src/lib.rs"
+test = false
+doctest = false
+bench = false

@@ -1,9 +1,12 @@
-[package]
-name = "display"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = [
+    "display-demo",
+    "epd-display"
+]
+default-members=[ "display-demo" ]
 
-[dependencies]
+[workspace.dependencies]
 embassy-executor = { version = "0.9", features = ["arch-cortex-m", "defmt", "executor-interrupt", "executor-thread"] }
 embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"] }
 embassy-rp = { version = "0.8", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
@@ -17,20 +20,6 @@ cortex-m-rt = "0.7"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
 
 embedded-graphics = { version = "0.8", features = ["defmt"] }
-
-[lib]
-name = "display"
-path = "src/lib.rs"
-test = false
-doctest = false
-bench = false
-
-[[bin]]
-name = "display"
-path = "src/bin/main.rs"
-test = false
-doctest = false
-bench = false
 
 [profile.release]
 debug = 2

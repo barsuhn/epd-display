@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod display_demo;
+
 use defmt::info;
 use embassy_executor::Executor;
 use embassy_rp::bind_interrupts;
@@ -11,9 +13,9 @@ use embassy_time::Timer;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
-use display::epd::display_spi::DisplaySpi;
-use display::epd::epd_2in66b::Epd2in66b;
-use display::display_demo::draw_demo;
+use epd_display::epd::display_spi::DisplaySpi;
+use epd_display::epd::epd_2in66b::Epd2in66b;
+use display_demo::draw_demo;
 
 static mut CORE1_STACK: Stack<40960> = Stack::new();
 static EXECUTOR0: StaticCell<Executor> = StaticCell::new();

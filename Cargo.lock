@@ -301,7 +301,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "display"
+name = "display-demo"
 version = "0.1.0"
 dependencies = [
  "cortex-m-rt",
@@ -311,6 +311,7 @@ dependencies = [
  "embassy-rp",
  "embassy-time",
  "embedded-graphics",
+ "epd-display",
  "panic-probe",
  "portable-atomic",
  "static_cell",
@@ -595,6 +596,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d248bdd43ce613d87415282f69b9bb99d947d290b10962dd6c56233312c2ad5"
 dependencies = [
  "log",
+]
+
+[[package]]
+name = "epd-display"
+version = "0.1.0"
+dependencies = [
+ "embassy-rp",
+ "embassy-time",
+ "embedded-graphics",
 ]
 
 [[package]]
