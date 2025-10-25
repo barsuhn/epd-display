@@ -1,3 +1,4 @@
+use embassy_rp::Peri;
 use embassy_rp::spi::Instance as SpiInstance;
 use embassy_rp::gpio::Pin;
 use embassy_time::{Duration, Timer};
@@ -33,12 +34,10 @@ impl<SPI> Epd2in66b<SPI>
 where
     SPI: SpiInstance + 'static,
 {
-    pub fn new<BUSY,DC,RST>(spi: DisplaySpi<SPI>, busy_pin: BUSY, dc_pin: DC, rst_pin: RST) -> Self 
-    where
-    BUSY: Pin,
-    DC: Pin,
-        RST: Pin
-    {
+    pub fn new(spi: DisplaySpi<SPI>,
+               busy_pin: Peri<'static, impl Pin>,
+               dc_pin: Peri<'static, impl Pin>,
+               rst_pin: Peri<'static, impl Pin>) -> Self {
         let epd = Epd::new(spi, busy_pin, dc_pin, rst_pin);
         let bw_buffer = bitmap_buffer!(WIDTH, HEIGHT);
         let chromatic_buffer = bitmap_buffer!(WIDTH, HEIGHT);

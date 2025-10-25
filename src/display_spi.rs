@@ -1,4 +1,4 @@
-use embassy_rp::Peripheral;
+use embassy_rp::Peri;
 use embassy_rp::dma::Channel;
 use embassy_rp::gpio::{Output, Level};
 use embassy_rp::spi::{Async, ClkPin, CsPin, MosiPin, Spi};
@@ -16,18 +16,13 @@ impl<SPI> DisplaySpi<SPI>
 where
     SPI: SpiInstance + 'static,
 {
-    pub fn new<CS, CLK, MOSI, DMA>(
-        spi_instance: impl Peripheral<P = SPI> + 'static,
-        cs_pin: CS,
-        clk_pin: CLK,
-        mosi_pin: MOSI,
-        dma_channel: DMA,
+    pub fn new(
+        spi_instance: Peri<'static, SPI>,
+        cs_pin: Peri<'static, impl CsPin<SPI>>,
+        clk_pin: Peri<'static, impl ClkPin<SPI>>,
+        mosi_pin: Peri<'static, impl MosiPin<SPI>>,
+        dma_channel: Peri<'static, impl Channel>
     ) -> Self
-    where
-        CS: CsPin<SPI>,
-        CLK: ClkPin<SPI>,
-        MOSI: MosiPin<SPI>,
-        DMA: Channel,
     {
         let cs = Output::new(cs_pin, Level::High);
         let spi = Spi::new_txonly(

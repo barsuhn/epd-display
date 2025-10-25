@@ -1,3 +1,4 @@
+use embassy_rp::Peri;
 use embassy_rp::gpio::{Input, Output, Level, Pull};
 use embassy_rp::spi::Instance as SpiInstance;
 use embassy_rp::gpio::Pin;
@@ -19,11 +20,10 @@ impl<SPI> Epd<SPI>
 where
     SPI: SpiInstance + 'static,
 {
-    pub fn new<BUSY,DC,RST>(spi: DisplaySpi<SPI>, busy_pin: BUSY, dc_pin: DC, rst_pin: RST) -> Self 
-    where
-        BUSY: Pin,
-        DC: Pin,
-        RST: Pin
+    pub fn new(spi: DisplaySpi<SPI>, 
+               busy_pin: Peri<'static, impl Pin>, 
+               dc_pin: Peri<'static, impl Pin>, 
+               rst_pin: Peri<'static, impl Pin>) -> Self 
     {
         let busy = Input::new(busy_pin, Pull::None);
         let dc = Output::new(dc_pin, Level::High);
