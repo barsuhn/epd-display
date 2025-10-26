@@ -3,6 +3,11 @@ name = "wifi-demo"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["rp2040"]
+rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic", "epd-display/rp2040",]
+rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "epd-display/rp2350",]
+
 [dependencies]
 epd-display = { path = "../epd-display" }
 embassy-executor = { workspace = true }
@@ -12,15 +17,10 @@ embassy-rp = { workspace = true }
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
 static_cell = { workspace = true }
-portable-atomic = { workspace = true }
+portable-atomic = { workspace = true, optional = true }
 
 cortex-m-rt = { workspace = true }
 panic-probe = { workspace = true }
-
-embedded-hal = { workspace = true }
-embedded-hal-async = { workspace = true }
-embedded-hal-bus = { workspace = true }
-embedded-graphics = { workspace = true }
 
 [[bin]]
 name = "display"

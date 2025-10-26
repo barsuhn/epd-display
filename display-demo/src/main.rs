@@ -38,8 +38,8 @@ fn main() -> ! {
         let display = DISPLAY.init(epd);
 
         match spawner.spawn(run_display(display)) {
-            Ok(_) => info!("core 1 display task started"),
-            Err(e) => info!("core 1 display task failed: {:?}", e),
+            Ok(_) => info!("display task started"),
+            Err(e) => info!("display task failed: {:?}", e),
         }
     });
 }

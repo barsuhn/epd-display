@@ -440,6 +440,7 @@ dependencies = [
  "pio",
  "rand_core 0.6.4",
  "rand_core 0.9.3",
+ "rp-binary-info",
  "rp-pac",
  "rp2040-boot2",
  "sha2-const-stable",
@@ -1105,6 +1106,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c6a884d2998352bb4daf0183589aec883f16a6da1f4dde84d8e2e9a5409a1ce"
 
 [[package]]
+name = "rp-binary-info"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88ed2051a0bf2c726df01cfce378ed8a367be2a6e402fc183857f429a346d429"
+
+[[package]]
 name = "rp-pac"
 version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1367,10 +1374,6 @@ dependencies = [
  "embassy-executor",
  "embassy-rp",
  "embassy-time",
- "embedded-graphics",
- "embedded-hal 1.0.0",
- "embedded-hal-async",
- "embedded-hal-bus",
  "epd-display",
  "panic-probe",
  "portable-atomic",

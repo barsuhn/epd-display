@@ -3,6 +3,11 @@ name = "epd-display"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+rp2040 = ["embassy-rp/rp2040"]
+rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info"]
+
 [dependencies]
 embassy-time = { workspace = true }
 embassy-rp = { workspace = true }
