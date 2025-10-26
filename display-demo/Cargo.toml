@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 epd-display = { path = "../epd-display" }
+dev-tools = { path = "../dev-tools" }
 embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
 embassy-rp = { workspace = true }
@@ -16,8 +17,6 @@ portable-atomic = { workspace = true }
 
 cortex-m-rt = { workspace = true }
 panic-probe = { workspace = true }
-
-embedded-graphics = { workspace = true }
 
 [[bin]]
 name = "display"

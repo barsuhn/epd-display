@@ -1,26 +1,26 @@
-use embassy_rp::Peri;
-use embassy_rp::spi::Instance as SpiInstance;
-use embassy_rp::gpio::Pin;
 use embassy_time::{Duration, Timer};
 use embedded_graphics::pixelcolor::raw::RawU2;
 use embedded_graphics::Pixel;
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::prelude::*;
-
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_async::spi::SpiDevice;
 use super::display_orientation::DisplayOrientation;
-use super::display_spi::DisplaySpi;
 use super::three_color::ThreeColor;
 use super::epd_spi::EpdSpi;
 
 const WIDTH: usize = 152;
 const HEIGHT: usize = 296;
 
-pub struct Epd2in66b<SPI>
+pub struct Epd2in66b<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
-    epd: EpdSpi<SPI>,
+    epd: EpdSpi<SPI, DC, RST, BUSY>,
     orientation: DisplayOrientation,
     bw_buffer: bitmap_buffer_type!(WIDTH, HEIGHT),
     chromatic_buffer: bitmap_buffer_type!(WIDTH, HEIGHT),
@@ -28,15 +28,15 @@ where
 
 // public API
 
-impl<SPI> Epd2in66b<SPI>
+impl<SPI, DC, RST, BUSY> Epd2in66b<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
-    pub fn new(spi: DisplaySpi<SPI>,
-               busy_pin: Peri<'static, impl Pin>,
-               dc_pin: Peri<'static, impl Pin>,
-               rst_pin: Peri<'static, impl Pin>) -> Self {
-        let epd = EpdSpi::new(spi, busy_pin, dc_pin, rst_pin);
+    pub fn new(spi: SPI, dc: DC, rst: RST, busy: BUSY) -> Self {
+        let epd = EpdSpi::new(spi, dc, rst, busy);
         let bw_buffer = bitmap_buffer!(WIDTH, HEIGHT);
         let chromatic_buffer = bitmap_buffer!(WIDTH, HEIGHT);
         let orientation = DisplayOrientation::Landscape;
@@ -97,18 +97,24 @@ impl PixelColor for ThreeColor {
     type Raw = RawU2;
 }
 
-impl<SPI> Dimensions for Epd2in66b<SPI>
+impl<SPI, DC, RST, BUSY> Dimensions for Epd2in66b<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
     fn bounding_box(&self) -> Rectangle {
        Rectangle::new(Point::zero(), Size::new(WIDTH as u32, HEIGHT as u32))
     }
 }
 
-impl<SPI> DrawTarget for Epd2in66b<SPI>
+impl<SPI, DC, RST, BUSY> DrawTarget for Epd2in66b<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
     type Color = ThreeColor;
     type Error = core::convert::Infallible;
@@ -148,9 +154,12 @@ where
 
 // private API
 
-impl<SPI> Epd2in66b<SPI>
+impl<SPI, DC, RST, BUSY> Epd2in66b<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
     fn convert_point(&self, point: Point) -> Point {
         match self.orientation {
@@ -193,7 +202,7 @@ where
     async fn set_display_update(&mut self, bw_mode: WriteMode, red_mode: WriteMode, output_source: OutputSource) {
         self.cmd_data(ThreeColorEpdCommand::DisplayUpdateControl1, &[
             (red_mode as u8) << 4 | (bw_mode as u8),
-            (output_source as u8)
+            output_source as u8
         ]).await;
     }
 

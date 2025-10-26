@@ -11,7 +11,6 @@ macro_rules! bitmap_buffer {
 }
 
 pub mod display_orientation;
-pub mod display_spi;
 pub mod epd_2in66b;
 pub mod three_color;
 

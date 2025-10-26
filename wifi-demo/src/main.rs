@@ -1,33 +1,28 @@
 #![no_std]
 #![no_main]
 
-mod display_demo;
 
 use defmt::info;
 use embassy_executor::Executor;
 use embassy_rp::bind_interrupts;
-use embassy_rp::peripherals::SPI1;
 use embassy_rp::multicore::{spawn_core1, Stack};
 use embassy_time::Timer;
-
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
-use epd_display::epd::display_spi::DisplaySpi;
-use epd_display::epd::epd_2in66b::Epd2in66b;
-use display_demo::draw_demo;
+use epd_display::epd2in66b::{EpdType, create_epd, draw_demo, EpdPeripherals};
 
 static mut CORE1_STACK: Stack<65536> = Stack::new();
 static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
-static DISPLAY: StaticCell<Epd2in66b<SPI1>> = StaticCell::new();
+static DISPLAY: StaticCell<EpdType> = StaticCell::new();
 
 bind_interrupts!(
     struct Irqs {}
 );
 
 #[embassy_executor::task]
-async fn run_display(display: &'static mut Epd2in66b<SPI1>) {
+async fn run_display(display: &'static mut EpdType) {
     info!("initializing display");
     display.init().await;
 
@@ -54,8 +49,6 @@ async fn run_wifi() {
     }
 }
 
-
-
 #[cortex_m_rt::entry]
 fn main() -> ! {
     let p = embassy_rp::init(Default::default());
@@ -63,8 +56,13 @@ fn main() -> ! {
     spawn_core1(p.CORE1, unsafe { &mut *core::ptr::addr_of_mut!(CORE1_STACK)  }, move || {
         info!("display task spawning");
 
-        let spi_ifc = DisplaySpi::new(p.SPI1, p.PIN_9, p.PIN_10, p.PIN_11, p.DMA_CH0);
-        let display = DISPLAY.init(Epd2in66b::new(spi_ifc, p.PIN_13, p.PIN_8, p.PIN_12));
+        let epd_peripherals = EpdPeripherals {
+            spi: p.SPI1, dma: p.DMA_CH0, cs_pin: p.PIN_9, clk_pin: p.PIN_10, mosi_pin: p.PIN_11,
+            dc_pin: p.PIN_8, rst_pin: p.PIN_12, busy_pin: p.PIN_13,
+        };
+
+        let epd = create_epd(epd_peripherals);
+        let display = DISPLAY.init(epd);
 
         let executor1 = EXECUTOR1.init(Executor::new());
         executor1.run(|spawner|

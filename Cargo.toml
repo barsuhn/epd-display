@@ -4,7 +4,7 @@ members = [
     "display-demo",
     "wifi-demo",
     "epd-display"
-]
+, "dev-tools"]
 default-members=[ "display-demo" ]
 
 [workspace.dependencies]
@@ -19,6 +19,10 @@ portable-atomic = { version = "1.10", features = ["critical-section"]}
 
 cortex-m-rt = "0.7"
 panic-probe = { version = "1.0", features = ["print-defmt"] }
+
+embedded-hal = { version = "1.0" }
+embedded-hal-async = { version = "1.0" }
+embedded-hal-bus = { version = "0.3", features = ["async"] }
 
 embedded-graphics = { version = "0.8", features = ["defmt"] }
 

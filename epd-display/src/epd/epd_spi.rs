@@ -1,39 +1,37 @@
-use embassy_rp::Peri;
-use embassy_rp::gpio::{Input, Output, Level, Pull};
-use embassy_rp::spi::Instance as SpiInstance;
-use embassy_rp::gpio::Pin;
 use embassy_time::{Duration, Timer};
+use embedded_hal_async::spi::SpiDevice;
+use embedded_hal::digital::{InputPin, OutputPin};
 
-use super::display_spi::DisplaySpi;
-
-pub struct EpdSpi<SPI>
+pub struct EpdSpi<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
-    spi: DisplaySpi<SPI>,
-    busy: Input<'static>,
-    dc: Output<'static>,
-    rst: Output<'static>,
+    spi: SPI,
+    dc: DC,
+    rst: RST,
+    busy: BUSY,
 }
 
-impl<SPI> EpdSpi<SPI>
+impl<SPI, DC, RST, BUSY> EpdSpi<SPI, DC, RST, BUSY>
 where
-    SPI: SpiInstance + 'static,
+    SPI: SpiDevice,
+    DC: OutputPin,
+    RST: OutputPin,
+    BUSY: InputPin,
 {
-    pub fn new(spi: DisplaySpi<SPI>, 
-               busy_pin: Peri<'static, impl Pin>, 
-               dc_pin: Peri<'static, impl Pin>, 
-               rst_pin: Peri<'static, impl Pin>) -> Self 
+    pub fn new(spi: SPI,
+               dc: DC,
+               rst: RST,
+               busy: BUSY) -> Self
     {
-        let busy = Input::new(busy_pin, Pull::None);
-        let dc = Output::new(dc_pin, Level::High);
-        let rst = Output::new(rst_pin, Level::High);
-
         EpdSpi { spi, dc, rst, busy }
     }
 
-    pub fn is_busy(&self) -> bool {
-        self.busy.is_high()
+    pub fn is_busy(&mut self) -> bool {
+        self.busy.is_high().unwrap_or(false)
     }
 
     pub async fn hw_reset(&mut self) {
