@@ -11,10 +11,10 @@ use embassy_executor::Executor;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{Config, StackResources};
-use embassy_rp::bind_interrupts;
+use embassy_rp::{bind_interrupts, Peri};
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::gpio::{Level, Output};
-use embassy_rp::peripherals::{DMA_CH0, PIO0};
+use embassy_rp::peripherals::{DMA_CH0, PIN_23, PIN_24, PIN_25, PIN_29, PIO0};
 use embassy_rp::pio::{InterruptHandler, Pio};
 //use embassy_time::Timer;
 use embassy_time::Duration;
@@ -34,15 +34,40 @@ bind_interrupts!(
 const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
 const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 
+struct WifiPeripherals {
+    pwr_pin: Peri<'static, PIN_23>,
+    cs_pin: Peri<'static, PIN_25>,
+    dio_pin: Peri<'static, PIN_24>,
+    clk_pin: Peri<'static, PIN_29>,
+    pio: Peri<'static, PIO0>,
+    dma: Peri<'static, DMA_CH0>,
+}
+
+struct WifiHardware {
+    control: cyw43::Control<'static>,
+    net_device: cyw43::NetDriver<'static>,
+}
+
 #[cortex_m_rt::entry]
 fn main() -> ! {
     unsafe { paint_stack(); }
+
+    let p = embassy_rp::init(Default::default());
+
+    let wifi_peripherals = WifiPeripherals {
+        pwr_pin: p.PIN_23,
+        cs_pin: p.PIN_25,
+        dio_pin: p.PIN_24,
+        clk_pin: p.PIN_29,
+        pio: p.PIO0,
+        dma: p.DMA_CH0,
+    };
 
     let executor0 = EXECUTOR0.init(Executor::new());
     executor0.run(|spawner| {
         info!("wifi task spawning");
 
-        match spawner.spawn(run_wifi(spawner)) {
+        match spawner.spawn(run_wifi(spawner, wifi_peripherals)) {
             Ok(_) => info!("wifi task started"),
             Err(_) => info!("wifi task failed"),
         }
@@ -50,27 +75,36 @@ fn main() -> ! {
 }
 
 #[embassy_executor::task]
-async fn run_wifi(spawner: Spawner) {
+async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals) {
+    let wifi_hardware = init_wifi_hardware(&spawner, peripherals).await;
+    let mut control = wifi_hardware.control;
+    let net_device = wifi_hardware.net_device;
+    let stack = connect_to_network(&spawner, &mut control, net_device).await;
+
     unsafe { measure_stack_usage(); }
 
-    let p = embassy_rp::init(Default::default());
-    let mut rng = RoscRng;
+    run_tcp_server(stack, &mut control).await
+}
 
+async fn init_wifi_hardware(
+    spawner: &Spawner,
+    peripherals: WifiPeripherals,
+) -> WifiHardware {
     let fw = include_bytes!("../../cyw43-firmware/43439A0.bin");
     let clm = include_bytes!("../../cyw43-firmware/43439A0_clm.bin");
 
-    let pwr = Output::new(p.PIN_23, Level::Low);
-    let cs = Output::new(p.PIN_25, Level::High);
-    let mut pio = Pio::new(p.PIO0, Irqs);
+    let pwr = Output::new(peripherals.pwr_pin, Level::Low);
+    let cs = Output::new(peripherals.cs_pin, Level::High);
+    let mut pio = Pio::new(peripherals.pio, Irqs);
     let spi = PioSpi::new(
         &mut pio.common,
         pio.sm0,
         DEFAULT_CLOCK_DIVIDER,
         pio.irq0,
         cs,
-        p.PIN_24,
-        p.PIN_29,
-        p.DMA_CH0,
+        peripherals.dio_pin,
+        peripherals.clk_pin,
+        peripherals.dma,
     );
 
     static STATE: StaticCell<cyw43::State> = StaticCell::new();
@@ -83,12 +117,22 @@ async fn run_wifi(spawner: Spawner) {
         .set_power_management(cyw43::PowerManagementMode::PowerSave)
         .await;
 
+    WifiHardware {
+        control,
+        net_device,
+    }
+}
+
+async fn connect_to_network(
+    spawner: &Spawner,
+    control: &mut cyw43::Control<'static>,
+    net_device: cyw43::NetDriver<'static>,
+) -> embassy_net::Stack<'static> {
     let config = Config::dhcpv4(Default::default());
 
-    // Generate random seed
+    let mut rng = RoscRng;
     let seed = rng.next_u64();
 
-    // Init network stack
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(net_device, config, RESOURCES.init(StackResources::new()), seed);
 
@@ -107,7 +151,6 @@ async fn run_wifi(spawner: Spawner) {
     info!("waiting for DHCP...");
     stack.wait_config_up().await;
 
-    // And now we can use it!
     info!("Stack is up!");
 
     if let Some(config) = stack.config_v4() {
@@ -118,8 +161,13 @@ async fn run_wifi(spawner: Spawner) {
         warn!("No IPv4 configuration available");
     }
 
-    unsafe { measure_stack_usage(); }
+    stack
+}
 
+async fn run_tcp_server(
+    stack: embassy_net::Stack<'static>,
+    control: &mut cyw43::Control<'static>,
+) -> ! {
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
     let mut buf = [0; 4096];
@@ -166,11 +214,6 @@ async fn run_wifi(spawner: Spawner) {
 
         unsafe { measure_stack_usage(); }
     }
-
-//     loop {
-//         info!("tick wifi");
-//         Timer::after_secs(240).await;
-//     }
 }
 
 #[embassy_executor::task]
