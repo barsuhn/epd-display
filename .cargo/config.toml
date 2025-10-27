@@ -9,4 +9,4 @@ runner = "probe-rs run --chip RP2040"
 runner = "probe-rs run --chip RP235x"
 
 [env]
-DEFMT_LOG = "debug"
+DEFMT_LOG = "info"

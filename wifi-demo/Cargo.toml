@@ -10,8 +10,10 @@ rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "epd-display/rp2350",]
 
 [dependencies]
 epd-display = { path = "../epd-display" }
+dev-tools = { path = "../dev-tools" }
 embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
+embassy-net = { workspace = true }
 embassy-rp = { workspace = true }
 
 defmt = { workspace = true }
@@ -22,8 +24,15 @@ portable-atomic = { workspace = true, optional = true }
 cortex-m-rt = { workspace = true }
 panic-probe = { workspace = true }
 
+embedded-io-async = { workspace = true }
+
+cyw43 = { workspace = true }
+cyw43-pio = { workspace = true }
+
+dotenvy_macro = { workspace = true }
+
 [[bin]]
-name = "display"
+name = "wifi_demo"
 path = "src/main.rs"
 test = false
 doctest = false

@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/epd-display/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/wifi-demo/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/dev-tools/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pico-display/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
