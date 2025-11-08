@@ -1665,6 +1665,7 @@ dependencies = [
  "embassy-executor",
  "embassy-net",
  "embassy-rp",
+ "embassy-sync",
  "embassy-time",
  "embedded-io-async",
  "epd-display",
