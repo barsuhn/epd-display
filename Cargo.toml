@@ -5,7 +5,8 @@ members = [
     "display-demo",
     "wifi-demo",
     "epd-display",
-    "dev-tools"
+    "wifi",
+    "dev-tools",
 ]
 default-members=[ "pico-display" ]
 

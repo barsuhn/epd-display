@@ -1,0 +1,29 @@
+[package]
+name = "wifi"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = []
+rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic"]
+rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info"]
+
+[dependencies]
+embassy-rp = { workspace = true }
+embassy-executor = { workspace = true }
+embassy-net = { workspace = true }
+
+defmt = { workspace = true }
+defmt-rtt = { workspace = true }
+static_cell = { workspace = true }
+portable-atomic = { workspace = true, optional = true }
+
+cyw43 = { workspace = true }
+cyw43-pio = { workspace = true }
+
+[lib]
+name = "wifi"
+path = "src/lib.rs"
+test = false
+doctest = false
+bench = false
