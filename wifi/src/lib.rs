@@ -3,18 +3,19 @@
 use cyw43::{ControlError, JoinOptions};
 use defmt::{info, warn};
 use embassy_rp::Peri;
-use embassy_rp::peripherals::{DMA_CH0, PIN_23, PIN_24, PIN_25, PIN_29, PIO0};
+use embassy_rp::peripherals::{PIN_23, PIN_24, PIN_25, PIN_29, PIO0};
 use embassy_net::Stack;
+use embassy_rp::dma::Channel;
 
 pub mod init;
 
-pub struct WifiPeripherals {
+pub struct WifiPeripherals<DMA: Channel> {
     pub pwr_pin: Peri<'static, PIN_23>,
     pub cs_pin: Peri<'static, PIN_25>,
     pub dio_pin: Peri<'static, PIN_24>,
     pub clk_pin: Peri<'static, PIN_29>,
     pub pio: Peri<'static, PIO0>,
-    pub dma: Peri<'static, DMA_CH0>,
+    pub dma: Peri<'static, DMA>,
 }
 
 pub struct WifiDriver {

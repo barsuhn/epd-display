@@ -9,6 +9,7 @@ use embassy_executor::Executor;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::Config;
+use embassy_rp::peripherals::DMA_CH0;
 use embassy_sync::channel::{Channel, Sender, Receiver};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_time::Duration;
@@ -54,13 +55,13 @@ fn main() -> ! {
 }
 
 #[embassy_executor::task]
-async fn run_init_wifi(spawner: Spawner, peripherals: WifiPeripherals, sender: Sender<'static, NoopRawMutex, WifiDriver, 1>) {
-    unsafe { paint_stack(); }
+async fn run_init_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0>, sender: Sender<'static, NoopRawMutex, WifiDriver, 1>) {
+    unsafe { paint_stack("wifi init"); }
 
     let config = Config::dhcpv4(Default::default());
     let driver = init_wifi(&spawner, peripherals, config).await;
 
-    unsafe { measure_stack_usage(); }
+    unsafe { measure_stack_usage("wifi init"); }
 
     sender.send(driver).await;
 }
@@ -69,13 +70,13 @@ async fn run_init_wifi(spawner: Spawner, peripherals: WifiPeripherals, sender: S
 async fn run_wifi(receiver: Receiver<'static, NoopRawMutex, WifiDriver, 1>) {
     let mut driver = receiver.receive().await;
 
-    unsafe { paint_stack(); }
+    unsafe { paint_stack("wifi"); }
 
     if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {
         panic!("join failed with status={}", err.status);
     }
 
-    unsafe { measure_stack_usage(); }
+    unsafe { measure_stack_usage("wifi"); }
 
     run_tcp_server(&mut driver).await;
 }

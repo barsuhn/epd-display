@@ -5,14 +5,18 @@ edition = "2024"
 
 [features]
 default = ["rp2040"]
-rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic", "epd-display/rp2040",]
-rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "epd-display/rp2350",]
+rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic", "epd-display/rp2040", "wifi/rp2040",]
+rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "epd-display/rp2350", "wifi/rp2350",]
 
 [dependencies]
 epd-display = { path = "../epd-display" }
+wifi = { path = "../wifi" }
+dev-tools = { path = "../dev-tools" }
+embassy-rp = { workspace = true }
 embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
-embassy-rp = { workspace = true }
+embassy-net = { workspace = true }
+embassy-sync = { workspace = true }
 
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
@@ -21,6 +25,10 @@ portable-atomic = { workspace = true, optional = true }
 
 cortex-m-rt = { workspace = true }
 panic-probe = { workspace = true }
+
+embedded-io-async = { workspace = true }
+
+dotenvy_macro = { workspace = true }
 
 [[bin]]
 name = "pico_display"

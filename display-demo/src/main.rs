@@ -21,7 +21,7 @@ bind_interrupts!(
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
-    unsafe { paint_stack(); }
+    unsafe { paint_stack("display"); }
 
     let p = embassy_rp::init(Default::default());
 
@@ -58,7 +58,7 @@ async fn run_display(display: &'static mut EpdType) {
     info!("going to sleep state");
     display.sleep().await;
 
-    unsafe { measure_stack_usage(); }
+    unsafe { measure_stack_usage("display"); }
 
     loop {
         info!("tick display");

@@ -1187,13 +1187,19 @@ dependencies = [
  "cortex-m-rt",
  "defmt 1.0.1",
  "defmt-rtt",
+ "dev-tools",
+ "dotenvy_macro",
  "embassy-executor",
+ "embassy-net",
  "embassy-rp",
+ "embassy-sync",
  "embassy-time",
+ "embedded-io-async",
  "epd-display",
  "panic-probe",
  "portable-atomic",
  "static_cell",
+ "wifi",
 ]
 
 [[package]]
@@ -1671,8 +1677,6 @@ name = "wifi-demo"
 version = "0.1.0"
 dependencies = [
  "cortex-m-rt",
- "cyw43",
- "cyw43-pio",
  "defmt 1.0.1",
  "defmt-rtt",
  "dev-tools",

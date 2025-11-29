@@ -27,9 +27,6 @@ panic-probe = { workspace = true }
 
 embedded-io-async = { workspace = true }
 
-cyw43 = { workspace = true }
-cyw43-pio = { workspace = true }
-
 dotenvy_macro = { workspace = true }
 
 [[bin]]
