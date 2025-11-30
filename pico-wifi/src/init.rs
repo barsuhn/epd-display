@@ -11,6 +11,9 @@ use embassy_rp::dma::Channel;
 use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, DMA_CH2, DMA_CH3, DMA_CH4, DMA_CH5, DMA_CH6, DMA_CH7, DMA_CH8, DMA_CH9, DMA_CH10, DMA_CH11, PIO0};
 use crate::{WifiDriver, WifiPeripherals};
 
+static FIRMWARE: &[u8]  = include_bytes!("../../cyw43-firmware/43439A0.bin");
+static FIRMWARE_CLM: &[u8] = include_bytes!("../../cyw43-firmware/43439A0_clm.bin");
+
 bind_interrupts!(
     struct Irqs {
         PIO0_IRQ_0 => InterruptHandler<PIO0>;
@@ -23,9 +26,6 @@ pub trait SpawnCyw43Task {
 }
 
 pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, peripherals: WifiPeripherals<DMA>, config: Config) -> WifiDriver {
-    let fw = include_bytes!("../../cyw43-firmware/43439A0.bin");
-    let clm = include_bytes!("../../cyw43-firmware/43439A0_clm.bin");
-
     let pwr = Output::new(peripherals.pwr_pin, Level::Low);
     let cs = Output::new(peripherals.cs_pin, Level::High);
     let mut pio = Pio::new(peripherals.pio, Irqs);
@@ -42,7 +42,7 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, periphe
 
     static CYW43_STATE: StaticCell<cyw43::State> = StaticCell::new();
     let state = CYW43_STATE.init(cyw43::State::new());
-    let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, fw).await;
+    let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, FIRMWARE).await;
 
     match DMA::spawn_task(spawner, runner) {
         Ok(_) => info!("Cyw43 runner task spawned"),
@@ -60,7 +60,7 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, periphe
         Err(_) => info!("Net runner task failed")
     }
 
-    control.init(clm).await;
+    control.init(FIRMWARE_CLM).await;
     control
           .set_power_management(cyw43::PowerManagementMode::PowerSave)
           .await;

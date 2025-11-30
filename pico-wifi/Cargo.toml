@@ -1,5 +1,5 @@
 [package]
-name = "wifi"
+name = "pico-wifi"
 version = "0.1.0"
 edition = "2024"
 
@@ -14,7 +14,6 @@ embassy-executor = { workspace = true }
 embassy-net = { workspace = true }
 
 defmt = { workspace = true }
-defmt-rtt = { workspace = true }
 static_cell = { workspace = true }
 portable-atomic = { workspace = true, optional = true }
 
@@ -22,7 +21,7 @@ cyw43 = { workspace = true }
 cyw43-pio = { workspace = true }
 
 [lib]
-name = "wifi"
+name = "pico_wifi"
 path = "src/lib.rs"
 test = false
 doctest = false

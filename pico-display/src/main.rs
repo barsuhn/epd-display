@@ -19,8 +19,8 @@ use static_cell::StaticCell;
 
 use dev_tools::stack_paint::{paint_stack, paint_stack_mem, measure_stack_usage, measure_stack_mem_usage};
 use epd_display::epd2in66b::{EpdType, create_epd, draw_demo, EpdPeripherals};
-use wifi::{WifiPeripherals,WifiDriver};
-use wifi::init::init_wifi;
+use pico_wifi::{WifiPeripherals,WifiDriver};
+use pico_wifi::init::init_wifi;
 
 static mut CORE1_STACK: Stack<32768> = Stack::new();
 
@@ -36,6 +36,7 @@ fn main() -> ! {
     static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
     static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
     static DISPLAY: StaticCell<EpdType> = StaticCell::new();
+
     static INIT_CHANNEL: StaticCell<Channel<NoopRawMutex, WifiDriver, 1>> = StaticCell::new();
     let p = embassy_rp::init(Default::default());
 
@@ -131,6 +132,8 @@ async fn run_wifi(receiver: Receiver<'static, NoopRawMutex, WifiDriver, 1>) {
     if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {
         panic!("join failed with status={}", err.status);
     }
+
+    info!("Connected");
 
     unsafe { measure_stack_mem_usage("wifi", &raw const CORE1_STACK.mem); }
 

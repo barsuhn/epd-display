@@ -25,6 +25,7 @@ pub struct WifiDriver {
 
 impl WifiDriver {
     pub async fn connect(&mut self, network: &str, password: &str) -> Result<(), ControlError> {
+        info!("joining...");
         self.control.join(network, JoinOptions::new(password.as_bytes())).await?;
 
         info!("waiting for link...");

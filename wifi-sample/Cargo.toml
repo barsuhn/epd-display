@@ -1,0 +1,52 @@
+[package]
+edition = "2024"
+name = "wifi-sample"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+embassy-executor = { version = "0.9", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
+embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"] }
+embassy-sync = { version = "0.7.2", features = ["defmt"] }
+embassy-net = { version = "0.7", features = ["defmt", "icmp", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
+embassy-rp = { version = "0.9", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
+cyw43 = { version = "0.6", features = ["defmt"] }
+cyw43-pio = { version = "0.9", features = ["defmt"] }
+
+defmt = "1.0"
+defmt-rtt = "1.0"
+static_cell = "2.1"
+portable-atomic = { version = "1.5", features = ["critical-section"] }
+
+cortex-m = { version = "0.7.6", features = ["inline-asm"] }
+cortex-m-rt = "0.7.0"
+critical-section = "1.1"
+panic-probe = { version = "1.0.0", features = ["print-defmt"] }
+
+embedded-hal-1 = { package = "embedded-hal", version = "1.0" }
+embedded-hal-async = "1.0"
+embedded-hal-bus = { version = "0.1", features = ["async"] }
+embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
+
+log = "0.4"
+rand = { version = "0.9.0", default-features = false }
+
+dotenvy_macro = "0.15"
+
+[profile.release]
+# Enable generation of debug symbols even on release builds
+debug = true
+
+[package.metadata.embassy]
+build = [
+  { target = "thumbv6m-none-eabi", artifact-dir = "out/examples/rp" }
+]
+
+[[bin]]
+name = "wifi_sample"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false

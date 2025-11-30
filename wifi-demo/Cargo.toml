@@ -5,11 +5,11 @@ edition = "2024"
 
 [features]
 default = ["rp2040"]
-rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic", "wifi/rp2040"]
-rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "wifi/rp2350"]
+rp2040 = ["embassy-rp/rp2040", "dep:portable-atomic", "pico-wifi/rp2040"]
+rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "pico-wifi/rp2350"]
 
 [dependencies]
-wifi = { path = "../wifi" }
+pico-wifi = { path = "../pico-wifi" }
 dev-tools = { path = "../dev-tools" }
 embassy-rp = { workspace = true }
 embassy-executor = { workspace = true }

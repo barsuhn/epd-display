@@ -16,8 +16,8 @@ use embassy_time::Duration;
 use embedded_io_async::Write;
 use static_cell::StaticCell;
 
-use wifi::{WifiPeripherals,WifiDriver};
-use wifi::init::init_wifi;
+use pico_wifi::{WifiPeripherals,WifiDriver};
+use pico_wifi::init::init_wifi;
 use dev_tools::stack_paint::{measure_stack_usage, paint_stack};
 
 const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
