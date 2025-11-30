@@ -2,6 +2,13 @@
 
 ## Building and Running
 
+To enable WIFI connection, a `.env` file must be created in the project root directory with the following content
+
+```
+WIFI_NETWORK=your_ssid
+WIFI_PASSWORD=your_password
+```
+
 The binary crates use rp2040 as a default feature. Those can be compiled and run using the usual cargo 
 commands:
 
