@@ -1,70 +1,34 @@
 #![no_std]
 #![no_main]
 
-use {defmt_rtt as _, panic_probe as _};
+mod tasks;
 
-use core::str::from_utf8;
-use defmt::{info, warn};
-use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
-use embassy_executor::{Executor, Spawner};
-use embassy_net::Config;
-use embassy_rp::bind_interrupts;
+use {defmt_rtt as _, panic_probe as _};
+use defmt::info;
+use embassy_executor::Executor;
 use embassy_rp::multicore::{spawn_core1, Stack};
-use embassy_net::tcp::TcpSocket;
-use embassy_rp::gpio::{Level, Output};
-use embassy_rp::peripherals::{PIO0, DMA_CH0};
-use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
-use embassy_sync::channel::{Channel, Sender, Receiver};
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
-use embassy_time::{Timer, Duration};
-use embedded_io_async::Write;
 use static_cell::StaticCell;
 
-use dev_tools::stack_paint::{paint_stack, paint_stack_mem, measure_stack_usage, measure_stack_mem_usage};
-use epd_display::epd2in66b::{EpdType, create_epd, draw_demo, EpdPeripherals};
-use pico_wifi::{WifiPeripherals, WifiDriver, WifiPio};
-use pico_wifi::init::init_wifi;
-
-static mut CORE1_STACK: Stack<32768> = Stack::new();
-
-bind_interrupts!(
-    struct Irqs {
-        PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
-    }
-);
-
-macro_rules! wifi_spi {
-    ($wifi_pio:expr, $dio_pin:expr, $clk_pin:expr, $dma_channel:expr) => {
-        {
-            PioSpi::new(
-                &mut $wifi_pio.pio.common,
-                $wifi_pio.pio.sm0,
-                DEFAULT_CLOCK_DIVIDER,
-                $wifi_pio.pio.irq0,
-                $wifi_pio.cs,
-                $dio_pin,
-                $clk_pin,
-                $dma_channel,
-            )
-        }
-    }
-}
-
-const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
-const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
+use crate::tasks::wifi::{WifiPeripherals, run_wifi};
+use crate::tasks::display::{DisplayPeripherals, run_display};
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
     static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
     static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
-    static DISPLAY: StaticCell<EpdType> = StaticCell::new();
+    static CORE1_STACK: StaticCell<Stack<32768>> = StaticCell::new();
 
-    static INIT_CHANNEL: StaticCell<Channel<NoopRawMutex, WifiDriver, 1>> = StaticCell::new();
     let p = embassy_rp::init(Default::default());
 
-    let epd_peripherals = EpdPeripherals {
-        spi: p.SPI1, dma: p.DMA_CH1, cs_pin: p.PIN_9, clk_pin: p.PIN_10, mosi_pin: p.PIN_11,
-        dc_pin: p.PIN_8, rst_pin: p.PIN_12, busy_pin: p.PIN_13,
+    let epd_peripherals = DisplayPeripherals {
+        spi: p.SPI1,
+        dma: p.DMA_CH1,
+        cs_pin: p.PIN_9,
+        clk_pin: p.PIN_10,
+        mosi_pin: p.PIN_11,
+        dc_pin: p.PIN_8,
+        rst_pin: p.PIN_12,
+        busy_pin: p.PIN_13,
     };
 
     let wifi_peripherals = WifiPeripherals {
@@ -76,138 +40,22 @@ fn main() -> ! {
         dma: p.DMA_CH0,
     };
 
-    let mut wifi_pio = WifiPio::new(wifi_peripherals.cs_pin, wifi_peripherals.pio, Irqs);
-    let wifi_spi = wifi_spi!(wifi_pio, wifi_peripherals.dio_pin, wifi_peripherals.clk_pin, wifi_peripherals.dma);
-    let pwr = Output::new(wifi_peripherals.pwr_pin, Level::Low);
-
-    spawn_core1(p.CORE1, unsafe { &mut *(&raw mut CORE1_STACK)  }, move || {
-        let init_channel = INIT_CHANNEL.init(Channel::new());
+    spawn_core1(p.CORE1, CORE1_STACK.init(Stack::new()), move || {
         let executor1 = EXECUTOR1.init(Executor::new());
 
         executor1.run(|spawner| {
-            info!("wifi task spawning");
-
-            match spawner.spawn(run_init_wifi(spawner, pwr, wifi_spi, init_channel.sender())) {
-                Ok(_) => info!("core 1 wifi init task started"),
-                Err(_) => info!("core 1 wifi init task failed"),
-            }
-
-            match spawner.spawn(run_wifi(init_channel.receiver())) {
-                Ok(_) => info!("core 1 connect task started"),
-                Err(_) => info!("core 1 connect task failed"),
+            match spawner.spawn(run_wifi(spawner, wifi_peripherals)) {
+                Ok(_) => info!("Core 1 wifi task started"),
+                Err(_) => info!("Core 1 wifi task failed"),
             }
         });
     });
 
-    info!("display task spawning");
-
-    let epd = create_epd(epd_peripherals);
-    let display = DISPLAY.init(epd);
-
     let executor0 = EXECUTOR0.init(Executor::new());
     executor0.run(|spawner|
-        match spawner.spawn(run_display(display)) {
-            Ok(_) => info!("core 0 display task started"),
-            Err(e) => info!("core 0 display task failed: {:?}", e),
+        match spawner.spawn(run_display(epd_peripherals)) {
+            Ok(_) => info!("Core 0 display task started"),
+            Err(e) => info!("Core 0 display task failed: {:?}", e),
         }
     );
-}
-
-#[embassy_executor::task]
-async fn run_display(display: &'static mut EpdType) {
-    unsafe { paint_stack("display"); }
-
-    info!("initializing display");
-    display.init().await;
-
-    info!("drawing");
-    draw_demo(display);
-
-    info!("updating display");
-    display.refresh().await;
-
-    info!("going to sleep state");
-    display.sleep().await;
-
-    unsafe { measure_stack_usage("display"); }
-
-    loop {
-        info!("tick display");
-        Timer::after_secs(240).await;
-    }
-}
-
-#[embassy_executor::task]
-async fn run_init_wifi(spawner: Spawner, pwr: Output<'static>, wifi_spi:  PioSpi<'static, PIO0, 0, DMA_CH0>, sender: Sender<'static, NoopRawMutex, WifiDriver, 1>) {
-    unsafe { paint_stack_mem("wifi init", &raw mut CORE1_STACK.mem); }
-
-    let config = Config::dhcpv4(Default::default());
-    let driver = init_wifi(&spawner, pwr, wifi_spi, config).await;
-
-    unsafe { measure_stack_mem_usage("wifi init", &raw const CORE1_STACK.mem); }
-
-    sender.send(driver).await;
-}
-
-#[embassy_executor::task]
-async fn run_wifi(receiver: Receiver<'static, NoopRawMutex, WifiDriver, 1>) {
-    let mut driver = receiver.receive().await;
-
-    unsafe { paint_stack_mem("wifi", &raw mut CORE1_STACK.mem); }
-
-    if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {
-        panic!("join failed with status={}", err.status);
-    }
-
-    info!("Connected");
-
-    unsafe { measure_stack_mem_usage("wifi", &raw const CORE1_STACK.mem); }
-
-    run_tcp_server(&mut driver).await;
-}
-
-async fn run_tcp_server(driver: &mut WifiDriver) -> ! {
-    let WifiDriver{ control, stack} = driver;
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
-    let mut buf = [0; 4096];
-
-    loop {
-        let mut socket = TcpSocket::new(*stack, &mut rx_buffer, &mut tx_buffer);
-        socket.set_timeout(Some(Duration::from_secs(10)));
-
-        control.gpio_set(0, false).await;
-        info!("Listening on TCP:1234...");
-        if let Err(e) = socket.accept(1234).await {
-            warn!("accept error: {:?}", e);
-            continue;
-        }
-
-        info!("Received connection from {:?}", socket.remote_endpoint());
-        control.gpio_set(0, true).await;
-
-        loop {
-            let n = match socket.read(&mut buf).await {
-                Ok(0) => {
-                    warn!("read EOF");
-                    break;
-                }
-                Ok(n) => n,
-                Err(e) => {
-                    warn!("read error: {:?}", e);
-                    break;
-                }
-            };
-
-            info!("rxd {}", from_utf8(&buf[..n]).unwrap());
-
-            match socket.write_all(&buf[..n]).await {
-                Ok(()) => {}
-                Err(e) => {
-                    warn!("write error: {:?}", e);
-                    break;
-                }
-            };
-        }
-    }
 }

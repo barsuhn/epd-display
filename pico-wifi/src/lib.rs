@@ -42,16 +42,9 @@ pub struct WifiDriver {
 
 impl WifiDriver {
     pub async fn connect(&mut self, network: &str, password: &str) -> Result<(), ControlError> {
-        info!("joining...");
         self.control.join(network, JoinOptions::new(password.as_bytes())).await?;
-
-        info!("waiting for link...");
         self.stack.wait_link_up().await;
-
-        info!("waiting for DHCP...");
         self.stack.wait_config_up().await;
-
-        info!("Stack is up!");
 
         if let Some(config) = self.stack.config_v4() {
             info!("IP address: {}", config.address);
