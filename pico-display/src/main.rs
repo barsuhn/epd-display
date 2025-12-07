@@ -5,12 +5,15 @@ use {defmt_rtt as _, panic_probe as _};
 
 use core::str::from_utf8;
 use defmt::{info, warn};
+use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
 use embassy_executor::{Executor, Spawner};
 use embassy_net::Config;
 use embassy_rp::bind_interrupts;
 use embassy_rp::multicore::{spawn_core1, Stack};
 use embassy_net::tcp::TcpSocket;
-use embassy_rp::peripherals::DMA_CH0;
+use embassy_rp::gpio::{Level, Output};
+use embassy_rp::peripherals::{PIO0, DMA_CH0};
+use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
 use embassy_sync::channel::{Channel, Sender, Receiver};
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_time::{Timer, Duration};
@@ -19,14 +22,33 @@ use static_cell::StaticCell;
 
 use dev_tools::stack_paint::{paint_stack, paint_stack_mem, measure_stack_usage, measure_stack_mem_usage};
 use epd_display::epd2in66b::{EpdType, create_epd, draw_demo, EpdPeripherals};
-use pico_wifi::{WifiPeripherals,WifiDriver};
+use pico_wifi::{WifiPeripherals, WifiDriver, WifiPio};
 use pico_wifi::init::init_wifi;
 
 static mut CORE1_STACK: Stack<32768> = Stack::new();
 
 bind_interrupts!(
-    struct Irqs {}
+    struct Irqs {
+        PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
+    }
 );
+
+macro_rules! wifi_spi {
+    ($wifi_pio:expr, $dio_pin:expr, $clk_pin:expr, $dma_channel:expr) => {
+        {
+            PioSpi::new(
+                &mut $wifi_pio.pio.common,
+                $wifi_pio.pio.sm0,
+                DEFAULT_CLOCK_DIVIDER,
+                $wifi_pio.pio.irq0,
+                $wifi_pio.cs,
+                $dio_pin,
+                $clk_pin,
+                $dma_channel,
+            )
+        }
+    }
+}
 
 const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
 const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
@@ -54,6 +76,10 @@ fn main() -> ! {
         dma: p.DMA_CH0,
     };
 
+    let mut wifi_pio = WifiPio::new(wifi_peripherals.cs_pin, wifi_peripherals.pio, Irqs);
+    let wifi_spi = wifi_spi!(wifi_pio, wifi_peripherals.dio_pin, wifi_peripherals.clk_pin, wifi_peripherals.dma);
+    let pwr = Output::new(wifi_peripherals.pwr_pin, Level::Low);
+
     spawn_core1(p.CORE1, unsafe { &mut *(&raw mut CORE1_STACK)  }, move || {
         let init_channel = INIT_CHANNEL.init(Channel::new());
         let executor1 = EXECUTOR1.init(Executor::new());
@@ -61,7 +87,7 @@ fn main() -> ! {
         executor1.run(|spawner| {
             info!("wifi task spawning");
 
-            match spawner.spawn(run_init_wifi(spawner, wifi_peripherals, init_channel.sender())) {
+            match spawner.spawn(run_init_wifi(spawner, pwr, wifi_spi, init_channel.sender())) {
                 Ok(_) => info!("core 1 wifi init task started"),
                 Err(_) => info!("core 1 wifi init task failed"),
             }
@@ -112,11 +138,11 @@ async fn run_display(display: &'static mut EpdType) {
 }
 
 #[embassy_executor::task]
-async fn run_init_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0>, sender: Sender<'static, NoopRawMutex, WifiDriver, 1>) {
+async fn run_init_wifi(spawner: Spawner, pwr: Output<'static>, wifi_spi:  PioSpi<'static, PIO0, 0, DMA_CH0>, sender: Sender<'static, NoopRawMutex, WifiDriver, 1>) {
     unsafe { paint_stack_mem("wifi init", &raw mut CORE1_STACK.mem); }
 
     let config = Config::dhcpv4(Default::default());
-    let driver = init_wifi(&spawner, peripherals, config).await;
+    let driver = init_wifi(&spawner, pwr, wifi_spi, config).await;
 
     unsafe { measure_stack_mem_usage("wifi init", &raw const CORE1_STACK.mem); }
 

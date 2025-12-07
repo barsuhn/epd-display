@@ -17,6 +17,7 @@ embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }
+cyw43-pio = { workspace = true }
 
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }

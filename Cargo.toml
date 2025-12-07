@@ -14,7 +14,7 @@ default-members=[ "pico-display" ]
 embassy-executor = { version = "0.9", features = ["defmt", "arch-cortex-m", "executor-interrupt", "executor-thread"] }
 embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"] }
 embassy-net = { version = "0.7.1", features = ["defmt", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
-embassy-rp = { version = "0.8", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl"] }
+embassy-rp = { version = "0.9", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl"] }
 embassy-sync = "0.7.2"
 
 defmt = "1.0"
@@ -30,8 +30,8 @@ embedded-hal-async = { version = "1.0" }
 embedded-hal-bus = { version = "0.3", features = ["async"] }
 embedded-io-async = { version = "0.6" }
 
-cyw43 = { version = "0.5", features = ["defmt"] }
-cyw43-pio = { version = "0.8", features = ["defmt"] }
+cyw43 = { version = "0.6", features = ["defmt"] }
+cyw43-pio = { version = "0.9", features = ["defmt"] }
 
 embedded-graphics = { version = "0.8", features = ["defmt"] }
 

@@ -13,12 +13,15 @@ use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{Config, StackResources};
-use embassy_rp::bind_interrupts;
-use embassy_rp::clocks::RoscRng;
-use embassy_rp::gpio::{Level, Output};
+use embassy_rp::{bind_interrupts, Peri};
 use embassy_rp::peripherals::{DMA_CH0, PIO0};
-use embassy_rp::pio::{InterruptHandler, Pio};
+use embassy_rp::interrupt::typelevel::Binding;
+use embassy_rp::gpio::{Level, Output, Pin};
+use embassy_rp::dma::Channel;
+use embassy_rp::pio::{InterruptHandler, Pio, PioPin, Instance as PioInstance};
+use embassy_rp::clocks::RoscRng;
 use embassy_time::Duration;
+use cyw43::{Control, NetDriver};
 use embedded_io_async::Write;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -40,36 +43,56 @@ async fn net_task(mut runner: embassy_net::Runner<'static, cyw43::NetDriver<'sta
     runner.run().await
 }
 
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    info!("Hello World!");
+struct WifiPio<PIO: PioInstance + 'static> {
+    pub cs: Output<'static>,
+    pub pio: Pio<'static, PIO>,
+}
 
-    let p = embassy_rp::init(Default::default());
-    let mut rng = RoscRng;
+impl<PIO: PioInstance + 'static> WifiPio<PIO> {
+    fn new(cs_pin: Peri<'static, impl Pin>, pio_instance: Peri<'static, PIO>, irq: impl Binding<PIO::Interrupt, InterruptHandler<PIO>>) -> Self {
+        WifiPio {
+            cs: Output::new(cs_pin, Level::High),
+            pio: Pio::new(pio_instance, irq)
+        }
+    }
+
+    #[allow(unused)]
+    fn spi<DMA: Channel>(mut self: Self, dio_pin: Peri<'static, impl PioPin>, clk_pin: Peri<'static, impl PioPin>, dma_channel: Peri<'static, DMA>) -> PioSpi<'static, PIO, 0, DMA> {
+        PioSpi::new(
+            &mut self.pio.common,
+            self.pio.sm0,
+            DEFAULT_CLOCK_DIVIDER,
+            self.pio.irq0,
+            self.cs,
+            dio_pin,
+            clk_pin,
+            dma_channel,
+        )
+    }
+}
+
+macro_rules! wifi_spi {
+    ($wifi_pio:expr, $dio_pin:expr, $clk_pin:expr, $dma_channel:expr) => {
+        {
+            PioSpi::new(
+                &mut $wifi_pio.pio.common,
+                $wifi_pio.pio.sm0,
+                DEFAULT_CLOCK_DIVIDER,
+                $wifi_pio.pio.irq0,
+                $wifi_pio.cs,
+                $dio_pin,
+                $clk_pin,
+                $dma_channel,
+            )
+        }
+    }
+}
+
+async fn init_cyw43(spawner: Spawner, spi: PioSpi<'static, PIO0, 0, DMA_CH0>, pwr: Output<'static>) -> (Control<'static>, NetDriver<'static>) {
+    info!("Init Cyw43");
 
     let fw = include_bytes!("../../cyw43-firmware/43439A0.bin");
     let clm = include_bytes!("../../cyw43-firmware/43439A0_clm.bin");
-
-    // To make flashing faster for development, you may want to flash the firmwares independently
-    // at hardcoded addresses, instead of baking them into the program with `include_bytes!`:
-    //     probe-rs download 43439A0.bin --binary-format bin --chip RP2040 --base-address 0x10100000
-    //     probe-rs download 43439A0_clm.bin --binary-format bin --chip RP2040 --base-address 0x10140000
-    //let fw = unsafe { core::slice::from_raw_parts(0x10100000 as *const u8, 230321) };
-    //let clm = unsafe { core::slice::from_raw_parts(0x10140000 as *const u8, 4752) };
-
-    let pwr = Output::new(p.PIN_23, Level::Low);
-    let cs = Output::new(p.PIN_25, Level::High);
-    let mut pio = Pio::new(p.PIO0, Irqs);
-    let spi = PioSpi::new(
-        &mut pio.common,
-        pio.sm0,
-        DEFAULT_CLOCK_DIVIDER,
-        pio.irq0,
-        cs,
-        p.PIN_24,
-        p.PIN_29,
-        p.DMA_CH0,
-    );
 
     static STATE: StaticCell<cyw43::State> = StaticCell::new();
     let state = STATE.init(cyw43::State::new());
@@ -85,17 +108,24 @@ async fn main(spawner: Spawner) {
         .set_power_management(cyw43::PowerManagementMode::PowerSave)
         .await;
 
-    let config = Config::dhcpv4(Default::default());
-    //let config = embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-    //    address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 69, 2), 24),
-    //    dns_servers: Vec::new(),
-    //    gateway: Some(Ipv4Address::new(192, 168, 69, 1)),
-    //});
+    (control, net_device)
+}
 
-    // Generate random seed
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let p = embassy_rp::init(Default::default());
+
+    let pwr = Output::new(p.PIN_23, Level::Low);
+    let mut wio = WifiPio::new(p.PIN_25, p.PIO0, Irqs);
+    // let spi = wio.spi(p.PIN_24, p.PIN_29, p.DMA_CH0);
+    let spi = wifi_spi!(wio, p.PIN_24, p.PIN_29, p.DMA_CH0);
+
+    let (mut control, net_device) = init_cyw43(spawner, spi, pwr).await;
+
+    let config = Config::dhcpv4(Default::default());
+    let mut rng = RoscRng;
     let seed = rng.next_u64();
 
-    // Init network stack
     static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(net_device, config, RESOURCES.init(StackResources::new()), seed);
 
