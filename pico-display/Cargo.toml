@@ -11,25 +11,29 @@ rp2350 = ["embassy-rp/rp235xa", "embassy-rp/binary-info", "epd-display/rp2350", 
 [dependencies]
 epd-display = { path = "../epd-display" }
 pico-wifi = { path = "../pico-wifi" }
-dev-tools = { path = "../dev-tools" }
-embassy-rp = { workspace = true }
+
 embassy-executor = { workspace = true }
 embassy-time = { workspace = true }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }
+embassy-rp = { workspace = true }
+
 cyw43-pio = { workspace = true }
+
+embedded-graphics = { workspace = true }
+
+cortex-m-rt = { workspace = true }
+panic-probe = { workspace = true }
 
 defmt = { workspace = true }
 defmt-rtt = { workspace = true }
 static_cell = { workspace = true }
 portable-atomic = { workspace = true, optional = true }
 
-cortex-m-rt = { workspace = true }
-panic-probe = { workspace = true }
-
-embedded-io-async = { workspace = true }
-
 dotenvy_macro = { workspace = true }
+serde = { workspace = true, deafault-features = false, features = ["derive"] }
+serde-json-core = { workspace = true }
+heapless = { workspace = true, features = ["serde"] }
 
 [[bin]]
 name = "pico_display"

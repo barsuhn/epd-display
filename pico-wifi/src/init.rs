@@ -4,7 +4,7 @@ use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::gpio::{Output};
 use static_cell::StaticCell;
-use defmt::info;
+use defmt::{debug,error};
 use embassy_rp::dma::Channel;
 use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, DMA_CH2, DMA_CH3, DMA_CH4, DMA_CH5, DMA_CH6, DMA_CH7, DMA_CH8, DMA_CH9, DMA_CH10, DMA_CH11, PIO0};
 
@@ -23,8 +23,8 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, pwr: Ou
     let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, FIRMWARE).await;
 
     match DMA::spawn_task(spawner, runner) {
-        Ok(_) => info!("Cyw43 runner task spawned"),
-        Err(_) => info!("Cyw43 runner task failed")
+        Ok(_) => debug!("Cyw43 runner task spawned"),
+        Err(_) => error!("Cyw43 runner task failed")
     };
 
     // This allocates memory for 3 sockets. DHCP and DNS each require one socket.
@@ -34,8 +34,8 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, pwr: Ou
     let (stack, runner) = embassy_net::new(net_device, config, STACK_RESOURCES.init(StackResources::new()), seed);
 
     match spawner.spawn(net_task(runner)) {
-        Ok(_) => info!("Net runner task spawned"),
-        Err(_) => info!("Net runner task failed")
+        Ok(_) => debug!("Net runner task spawned"),
+        Err(_) => error!("Net runner task failed")
     }
 
     control.init(FIRMWARE_CLM).await;

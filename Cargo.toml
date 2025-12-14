@@ -14,28 +14,30 @@ default-members=[ "pico-display" ]
 embassy-executor = { version = "0.9", features = ["defmt", "arch-cortex-m", "executor-interrupt", "executor-thread"] }
 embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"] }
 embassy-net = { version = "0.7.1", features = ["defmt", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
+embassy-sync = {  version = "0.7.2" }
 embassy-rp = { version = "0.9", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl"] }
-embassy-sync = "0.7.2"
-
-defmt = "1.0"
-defmt-rtt = "1.0"
-static_cell = "2.1"
-portable-atomic = { version = "1.10", features = ["critical-section"]}
-
-cortex-m-rt = "0.7"
-panic-probe = { version = "1.0", features = ["print-defmt"] }
-
-embedded-hal = { version = "1.0" }
-embedded-hal-async = { version = "1.0" }
-embedded-hal-bus = { version = "0.3", features = ["async"] }
-embedded-io-async = { version = "0.6" }
 
 cyw43 = { version = "0.6", features = ["defmt"] }
 cyw43-pio = { version = "0.9", features = ["defmt"] }
 
+embedded-hal = { version = "1.0" }
+embedded-hal-async = { version = "1.0" }
+embedded-hal-bus = { version = "0.3", features = ["async"] }
+embedded-io-async = { version = "0.7" }
 embedded-graphics = { version = "0.8", features = ["defmt"] }
 
-dotenvy_macro = "0.15"
+cortex-m-rt = {  version = "0.7" }
+panic-probe = { version = "1.0", features = ["print-defmt"] }
+
+defmt = {  version = "1.0" }
+defmt-rtt = {  version = "1.0" }
+static_cell = {  version = "2.1" }
+portable-atomic = { version = "1.10", features = ["critical-section"]}
+
+dotenvy_macro = {  version = "0.15" }
+serde = { version = "1.0", default-features = false, features = ["derive"]}
+serde-json-core = {  version =  "0.6" }
+heapless = { version = "0.9", fetures = ["serde"] }
 
 [profile.release]
 debug = 2

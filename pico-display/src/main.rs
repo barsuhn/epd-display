@@ -2,9 +2,10 @@
 #![no_main]
 
 mod tasks;
+mod data;
 
 use {defmt_rtt as _, panic_probe as _};
-use defmt::info;
+use defmt::{debug,warn};
 use embassy_executor::Executor;
 use embassy_rp::multicore::{spawn_core1, Stack};
 use static_cell::StaticCell;
@@ -16,7 +17,7 @@ use crate::tasks::display::{DisplayPeripherals, run_display};
 fn main() -> ! {
     static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
     static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
-    static CORE1_STACK: StaticCell<Stack<32768>> = StaticCell::new();
+    static CORE1_STACK: StaticCell<Stack<40960>> = StaticCell::new();
 
     let p = embassy_rp::init(Default::default());
 
@@ -45,8 +46,8 @@ fn main() -> ! {
 
         executor1.run(|spawner| {
             match spawner.spawn(run_wifi(spawner, wifi_peripherals)) {
-                Ok(_) => info!("Core 1 wifi task started"),
-                Err(_) => info!("Core 1 wifi task failed"),
+                Ok(_) => debug!("Core 1 wifi task started"),
+                Err(_) => warn!("Core 1 wifi task failed"),
             }
         });
     });
@@ -54,8 +55,8 @@ fn main() -> ! {
     let executor0 = EXECUTOR0.init(Executor::new());
     executor0.run(|spawner|
         match spawner.spawn(run_display(epd_peripherals)) {
-            Ok(_) => info!("Core 0 display task started"),
-            Err(e) => info!("Core 0 display task failed: {:?}", e),
+            Ok(_) => debug!("Core 0 display task started"),
+            Err(e) => warn!("Core 0 display task failed: {:?}", e),
         }
     );
 }

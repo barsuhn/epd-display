@@ -1,7 +1,7 @@
 #![no_std]
 
 use cyw43::{ControlError, JoinOptions};
-use defmt::{info, warn};
+use defmt::{debug, warn};
 use embassy_rp::Peri;
 use embassy_rp::peripherals::{PIN_23, PIN_24, PIN_25, PIN_29, PIO0};
 use embassy_rp::interrupt::typelevel::Binding;
@@ -47,9 +47,9 @@ impl WifiDriver {
         self.stack.wait_config_up().await;
 
         if let Some(config) = self.stack.config_v4() {
-            info!("IP address: {}", config.address);
-            info!("Gateway: {:?}", config.gateway);
-            info!("DNS servers: {:?}", config.dns_servers);
+            debug!("IP address: {}", config.address);
+            debug!("Gateway: {:?}", config.gateway);
+            debug!("DNS servers: {:?}", config.dns_servers);
         } else {
             warn!("No IPv4 configuration available");
         }

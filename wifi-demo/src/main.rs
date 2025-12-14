@@ -4,7 +4,6 @@
 use {defmt_rtt as _, panic_probe as _};
 
 use defmt::{info,warn};
-use core::str::from_utf8;
 use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
 use embassy_executor::Executor;
 use embassy_executor::Spawner;
@@ -15,7 +14,8 @@ use embassy_rp::gpio::{Output, Level};
 use embassy_rp::peripherals::{PIO0, DMA_CH0};
 use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
 use embassy_time::Duration;
-use embedded_io_async::Write;
+use heapless::{String, Vec};
+use serde::Deserialize;
 use static_cell::StaticCell;
 
 use pico_wifi::{WifiPeripherals,WifiPio,WifiDriver};
@@ -127,10 +127,19 @@ async fn run_tcp_server(driver: &mut WifiDriver) -> ! {
                 }
             };
 
-            info!("rxd {}", from_utf8(&buf[..n]).unwrap());
+            match parse_message(&buf[..n]) {
+                Some(TextMessage { title, body}) => {
+                    info!("Received text message");
+                    info!("Title: {}", title.as_str());
+                    for i in 0..body.len() {
+                        info!("Line {}: {}", i, body[i].as_str())
+                    }
+                },
+                _ => info!("Failed to parse message")
+            }
 
-            match socket.write_all(&buf[..n]).await {
-                Ok(()) => {}
+            match socket.write(&buf[..n]).await {
+                Ok(_) => {}
                 Err(e) => {
                     warn!("write error: {:?}", e);
                     break;
@@ -139,3 +148,17 @@ async fn run_tcp_server(driver: &mut WifiDriver) -> ! {
         }
     }
 }
+
+#[derive(Deserialize, Debug)]
+struct TextMessage {
+    pub title: String<80>,
+    pub body: Vec<String<80>,10>
+}
+
+fn parse_message(buf: &[u8]) -> Option<TextMessage> {
+    match serde_json_core::from_slice::<TextMessage>(buf) {
+        Ok((message,_)) => Some(message),
+        _ => None
+    }
+}
+
