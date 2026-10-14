@@ -11,14 +11,14 @@ members = [
 default-members=[ "pico-display" ]
 
 [workspace.dependencies]
-embassy-executor = { version = "0.9", features = ["defmt", "arch-cortex-m", "executor-interrupt", "executor-thread"] }
+embassy-executor = { version = "0.10", features = ["defmt", "platform-cortex-m", "executor-interrupt", "executor-thread"] }
 embassy-time = { version = "0.5", features = ["defmt", "defmt-timestamp-uptime"] }
-embassy-net = { version = "0.7.1", features = ["defmt", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
-embassy-sync = {  version = "0.7.2" }
-embassy-rp = { version = "0.9", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl"] }
+embassy-net = { version = "0.9.1", features = ["defmt", "tcp", "udp", "raw", "dhcpv4", "medium-ethernet", "dns", "proto-ipv4", "proto-ipv6", "multicast"] }
+embassy-sync = {  version = "0.8" }
+embassy-rp = { version = "0.10", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl"] }
 
-cyw43 = { version = "0.6", features = ["defmt"] }
-cyw43-pio = { version = "0.9", features = ["defmt"] }
+cyw43 = { version = "0.7", features = ["defmt"] }
+cyw43-pio = { version = "0.10", features = ["defmt"] }
 
 embedded-hal = { version = "1.0" }
 embedded-hal-async = { version = "1.0" }
@@ -36,8 +36,8 @@ portable-atomic = { version = "1.10", features = ["critical-section"]}
 
 dotenvy_macro = {  version = "0.15" }
 serde = { version = "1.0", default-features = false, features = ["derive"]}
-serde-json-core = {  version =  "0.6" }
-heapless = { version = "0.9", fetures = ["serde"] }
+serde-json-core = {  version = "0.7" }
+heapless = { version = "0.9", features = ["serde"] }
 
 [profile.release]
 debug = 2

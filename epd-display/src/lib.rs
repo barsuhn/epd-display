@@ -1,6 +1,7 @@
 #![no_std]
 
-use embassy_rp::dma::Channel;
+use embassy_rp::dma::{ChannelInstance, InterruptHandler as DmaInterruptHandler};
+use embassy_rp::interrupt::typelevel::Binding;
 use embassy_rp::gpio::{Input, Level, Output, Pin, Pull};
 use embassy_rp::Peri;
 use embassy_rp::spi::{ClkPin, CsPin, MosiPin, Async, Spi, Config as SpiConfig, Instance as SpiInstance};
@@ -10,7 +11,7 @@ use crate::epd::epd_2in66b::Epd2in66b;
 
 pub mod epd;
 
-pub struct EpdPeripherals<CS,CLK,MOSI,DC,RST,BUSY,SPI,DMA> where
+pub struct EpdPeripherals<CS,CLK,MOSI,DC,RST,BUSY,SPI,DMA,IRQ> where
     CS: CsPin<SPI>,
     CLK: ClkPin<SPI>,
     MOSI: MosiPin<SPI>,
@@ -18,10 +19,12 @@ pub struct EpdPeripherals<CS,CLK,MOSI,DC,RST,BUSY,SPI,DMA> where
     RST: Pin,
     BUSY: Pin,
     SPI: SpiInstance + 'static,
-    DMA: Channel,
+    DMA: ChannelInstance,
+    IRQ: Binding<DMA::Interrupt, DmaInterruptHandler<DMA>> + 'static,
 {
     pub spi: Peri<'static, SPI>,
     pub dma: Peri<'static, DMA>,
+    pub irqs: IRQ,
     pub cs_pin: Peri<'static, CS>,
     pub clk_pin: Peri<'static, CLK>,
     pub mosi_pin: Peri<'static, MOSI>,
@@ -34,7 +37,7 @@ type SpiDeviceType<SPI> = ExclusiveDevice<Spi<'static, SPI, Async>, Output<'stat
 pub type EpdType<SPI> = Epd2in66b<SpiDeviceType<SPI>, Output<'static>, Output<'static>, Input<'static>>;
 
 impl <SPI: SpiInstance + 'static> EpdType<SPI> {
-    pub fn from_peripherals<CS,CLK,MOSI,DC,RST,BUSY,DMA>(p: EpdPeripherals<CS,CLK,MOSI,DC,RST,BUSY,SPI,DMA>) -> Self
+    pub fn from_peripherals<CS,CLK,MOSI,DC,RST,BUSY,DMA,IRQ>(p: EpdPeripherals<CS,CLK,MOSI,DC,RST,BUSY,SPI,DMA,IRQ>) -> Self
     where
         CS: CsPin<SPI>,
         CLK: ClkPin<SPI>,
@@ -42,13 +45,15 @@ impl <SPI: SpiInstance + 'static> EpdType<SPI> {
         DC: Pin,
         RST: Pin,
         BUSY: Pin,
-        DMA: Channel,
+        DMA: ChannelInstance,
+        IRQ: Binding<DMA::Interrupt, DmaInterruptHandler<DMA>> + 'static,
     {
         let spi_bus = Spi::new_txonly(
             p.spi,
             p.clk_pin,
             p.mosi_pin,
             p.dma,
+            p.irqs,
             SpiConfig::default(),
         );
         let cs = Output::new(p.cs_pin, Level::High);

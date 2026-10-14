@@ -10,7 +10,7 @@ use embedded_graphics::primitives::{Line, PrimitiveStyle};
 use epd_display::epd::three_color::ThreeColor;
 use crate::data::display_cmd::{DisplayCmd, TextPanelContent, DISPLAY_CMD_READY, SHARED_DISPLAY_CMD};
 
-pub type DisplayPeripherals = EpdPeripherals<PIN_9, PIN_10, PIN_11, PIN_8, PIN_12, PIN_13, SPI1, DMA_CH1>;
+pub type DisplayPeripherals = EpdPeripherals<PIN_9, PIN_10, PIN_11, PIN_8, PIN_12, PIN_13, SPI1, DMA_CH1, crate::Irqs>;
 
 #[embassy_executor::task]
 pub async fn run_display(peripherals: DisplayPeripherals) {

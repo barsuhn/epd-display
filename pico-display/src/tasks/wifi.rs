@@ -1,10 +1,9 @@
 use defmt::{trace, debug, info, warn};
 use core::fmt::Write;
 use embassy_executor::Spawner;
-use embassy_rp::bind_interrupts;
 use embassy_rp::gpio::{Level, Output};
-use embassy_rp::peripherals::{DMA_CH0, PIO0};
-use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
+use embassy_rp::dma::Channel as DmaChannel;
+use embassy_rp::peripherals::DMA_CH0;
 use embassy_net::Config;
 use embassy_net::tcp::TcpSocket;
 use embassy_time::Duration;
@@ -17,6 +16,7 @@ use pico_wifi::{WifiDriver, WifiPio};
 pub use pico_wifi::WifiPeripherals;
 use pico_wifi::init::init_wifi;
 
+use crate::Irqs;
 use crate::data::display_cmd::{DisplayCmd, TextLine, TextPanelContent, DISPLAY_CMD_READY, SHARED_DISPLAY_CMD};
 
 macro_rules! wifi_spi {
@@ -37,28 +37,23 @@ macro_rules! wifi_spi {
 }
 
 
-bind_interrupts!(
-    struct Irqs {
-        PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
-    }
-);
-
 const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
 const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 
 #[embassy_executor::task]
-pub async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0>) {
+pub async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0, Irqs>) {
     trace!("Wifi initialization");
 
-    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, Irqs);
-    let spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, peripherals.dma);
+    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, peripherals.irqs);
+    let dma = DmaChannel::new(peripherals.dma, peripherals.irqs);
+    let spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, dma);
     let pwr = Output::new(peripherals.pwr_pin, Level::Low);
 
     let config = Config::dhcpv4(Default::default());
     let mut driver = init_wifi(&spawner, pwr, spi, config).await;
 
     if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {
-        panic!("Connection failed with status={}", err.status);
+        panic!("Connection failed: {:?}", err);
     }
 
     if let Some(config) = driver.stack.config_v4() {

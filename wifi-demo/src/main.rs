@@ -11,7 +11,8 @@ use embassy_net::tcp::TcpSocket;
 use embassy_net::Config;
 use embassy_rp::bind_interrupts;
 use embassy_rp::gpio::{Output, Level};
-use embassy_rp::peripherals::{PIO0, DMA_CH0};
+use embassy_rp::dma::{Channel as DmaChannel, InterruptHandler as DmaInterruptHandler};
+use embassy_rp::peripherals::{DMA_CH0, PIO0};
 use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
 use embassy_time::Duration;
 use heapless::{String, Vec};
@@ -28,6 +29,7 @@ const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 bind_interrupts!(
     struct Irqs {
         PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
+        DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>;
     }
 );
 
@@ -60,12 +62,13 @@ fn main() -> ! {
         clk_pin: p.PIN_29,
         pio: p.PIO0,
         dma: p.DMA_CH0,
+        irqs: Irqs,
     };
 
     executor0.run(|spawner| {
         info!("wifi task spawning");
 
-        match spawner.spawn(run_wifi(spawner, peripherals)) {
+        match run_wifi(spawner, peripherals).map(|token| spawner.spawn(token)) {
             Ok(_) => info!("wifi init task started"),
             Err(_) => info!("wifi init task failed"),
         }
@@ -73,11 +76,12 @@ fn main() -> ! {
 }
 
 #[embassy_executor::task]
-async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0>) {
+async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0, Irqs>) {
     unsafe { paint_stack("wifi"); }
 
-    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, Irqs);
-    let wifi_spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, peripherals.dma);
+    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, peripherals.irqs);
+    let dma = DmaChannel::new(peripherals.dma, peripherals.irqs);
+    let wifi_spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, dma);
     let pwr = Output::new(peripherals.pwr_pin, Level::Low);
 
     let mut driver = {
@@ -86,7 +90,7 @@ async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0>) {
     };
 
     if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {
-        panic!("join failed with status={}", err.status);
+        panic!("join failed: {:?}", err);
     }
 
     unsafe { measure_stack_usage("wifi"); }

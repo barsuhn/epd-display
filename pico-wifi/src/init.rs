@@ -1,28 +1,28 @@
-use cyw43_pio::{PioSpi};
-use embassy_executor::{SpawnError, Spawner};
+use cyw43::{aligned_bytes, Aligned, A4, SpiBus};
+use cyw43_pio::PioSpi;
+use embassy_executor::Spawner;
 use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
-use embassy_rp::gpio::{Output};
+use embassy_rp::gpio::Output;
+use embassy_rp::peripherals::PIO0;
 use static_cell::StaticCell;
-use defmt::{debug,error};
-use embassy_rp::dma::Channel;
-use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, DMA_CH2, DMA_CH3, DMA_CH4, DMA_CH5, DMA_CH6, DMA_CH7, DMA_CH8, DMA_CH9, DMA_CH10, DMA_CH11, PIO0};
+use defmt::{debug, error};
 
 use crate::WifiDriver;
 
-static FIRMWARE: &[u8]  = include_bytes!("../../cyw43-firmware/43439A0.bin");
-static FIRMWARE_CLM: &[u8] = include_bytes!("../../cyw43-firmware/43439A0_clm.bin");
+static FIRMWARE: &Aligned<A4, [u8]> = aligned_bytes!("../../cyw43-firmware/43439A0.bin");
+static FIRMWARE_CLM: &Aligned<A4, [u8]> = aligned_bytes!("../../cyw43-firmware/43439A0_clm.bin");
+static NVRAM: &Aligned<A4, [u8]> = aligned_bytes!("../../cyw43-firmware/nvram_rp2040.bin");
 
-pub trait SpawnCyw43Task {
-    fn spawn_task(spawner: &Spawner, runner: cyw43::Runner<'static, Output<'static>, PioSpi<'static, PIO0, 0, Self>>) -> Result<(), SpawnError> where Self: Channel;
-}
+pub type WifiSpi = PioSpi<'static, PIO0, 0>;
+type Cyw43Runner = cyw43::Runner<'static, SpiBus<Output<'static>, WifiSpi>>;
 
-pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, pwr: Output<'static>, spi: PioSpi<'static, PIO0, 0, DMA>, config: Config) -> WifiDriver {
+pub async fn init_wifi(spawner: &Spawner, pwr: Output<'static>, spi: WifiSpi, config: Config) -> WifiDriver {
     static CYW43_STATE: StaticCell<cyw43::State> = StaticCell::new();
     let state = CYW43_STATE.init(cyw43::State::new());
-    let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, FIRMWARE).await;
+    let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, FIRMWARE, NVRAM).await;
 
-    match DMA::spawn_task(spawner, runner) {
+    match cyw43_task(runner).map(|token| spawner.spawn(token)) {
         Ok(_) => debug!("Cyw43 runner task spawned"),
         Err(_) => error!("Cyw43 runner task failed")
     };
@@ -33,7 +33,7 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, pwr: Ou
     let seed = rng.next_u64();
     let (stack, runner) = embassy_net::new(net_device, config, STACK_RESOURCES.init(StackResources::new()), seed);
 
-    match spawner.spawn(net_task(runner)) {
+    match net_task(runner).map(|token| spawner.spawn(token)) {
         Ok(_) => debug!("Net runner task spawned"),
         Err(_) => error!("Net runner task failed")
     }
@@ -49,33 +49,10 @@ pub async fn init_wifi<DMA: Channel + SpawnCyw43Task>(spawner: &Spawner, pwr: Ou
     }
 }
 
-macro_rules! create_cyw43_task {
-    ($name:ident, $dma:ty) => {
-        impl SpawnCyw43Task for $dma {
-            fn spawn_task(spawner: &Spawner, runner: cyw43::Runner<'static, Output<'static>, PioSpi<'static, PIO0, 0, Self>>) -> Result<(), SpawnError> {
-                spawner.spawn($name(runner))
-            }
-        }
-
-        #[embassy_executor::task]
-        async fn $name(runner: cyw43::Runner<'static, Output<'static>, PioSpi<'static, PIO0, 0, $dma>>) -> ! {
-            runner.run().await
-        }
-    };
+#[embassy_executor::task]
+async fn cyw43_task(runner: Cyw43Runner) -> ! {
+    runner.run().await
 }
-
-create_cyw43_task!(cyw43_task_ch0, DMA_CH0);
-create_cyw43_task!(cyw43_task_ch1, DMA_CH1);
-create_cyw43_task!(cyw43_task_ch2, DMA_CH2);
-create_cyw43_task!(cyw43_task_ch3, DMA_CH3);
-create_cyw43_task!(cyw43_task_ch4, DMA_CH4);
-create_cyw43_task!(cyw43_task_ch5, DMA_CH5);
-create_cyw43_task!(cyw43_task_ch6, DMA_CH6);
-create_cyw43_task!(cyw43_task_ch7, DMA_CH7);
-create_cyw43_task!(cyw43_task_ch8, DMA_CH8);
-create_cyw43_task!(cyw43_task_ch9, DMA_CH9);
-create_cyw43_task!(cyw43_task_ch10, DMA_CH10);
-create_cyw43_task!(cyw43_task_ch11, DMA_CH11);
 
 #[embassy_executor::task]
 async fn net_task(mut runner: embassy_net::Runner<'static, cyw43::NetDriver<'static>>) -> ! {

@@ -4,7 +4,8 @@
 use defmt::info;
 use embassy_executor::Executor;
 use embassy_rp::bind_interrupts;
-use embassy_rp::peripherals::SPI1;
+use embassy_rp::dma::InterruptHandler as DmaInterruptHandler;
+use embassy_rp::peripherals::{DMA_CH0, SPI1};
 use embassy_time::Timer;
 
 use embedded_hal_async::spi::SpiDevice;
@@ -28,7 +29,9 @@ static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
 static DISPLAY: StaticCell<EpdType<SPI1>> = StaticCell::new();
 
 bind_interrupts!(
-    struct Irqs {}
+    struct Irqs {
+        DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>;
+    }
 );
 
 #[cortex_m_rt::entry]
@@ -42,14 +45,14 @@ fn main() -> ! {
         info!("display task spawning");
 
         let epd_peripherals = EpdPeripherals {
-            spi: p.SPI1, dma: p.DMA_CH0, cs_pin: p.PIN_9, clk_pin: p.PIN_10, mosi_pin: p.PIN_11,
+            spi: p.SPI1, dma: p.DMA_CH0, irqs: Irqs, cs_pin: p.PIN_9, clk_pin: p.PIN_10, mosi_pin: p.PIN_11,
             dc_pin: p.PIN_8, rst_pin: p.PIN_12, busy_pin: p.PIN_13,
         };
 
         let epd = EpdType::from_peripherals(epd_peripherals);
         let display = DISPLAY.init(epd);
 
-        match spawner.spawn(run_display(display)) {
+        match run_display(display).map(|token| spawner.spawn(token)) {
             Ok(_) => info!("display task started"),
             Err(e) => info!("display task failed: {:?}", e),
         }
