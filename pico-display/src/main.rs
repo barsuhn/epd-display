@@ -28,7 +28,7 @@ bind_interrupts!(
 fn main() -> ! {
     static EXECUTOR0: StaticCell<Executor> = StaticCell::new();
     static EXECUTOR1: StaticCell<Executor> = StaticCell::new();
-    static CORE1_STACK: StaticCell<Stack<40960>> = StaticCell::new();
+    static CORE1_STACK: StaticCell<Stack<45000>> = StaticCell::new();
 
     let p = embassy_rp::init(Default::default());
 
