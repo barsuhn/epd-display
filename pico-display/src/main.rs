@@ -8,10 +8,10 @@ use {defmt_rtt as _, panic_probe as _};
 use defmt::{debug,warn};
 use embassy_executor::Executor;
 use embassy_rp::bind_interrupts;
-use embassy_rp::dma::InterruptHandler as DmaInterruptHandler;
+use embassy_rp::dma;
 use embassy_rp::multicore::{spawn_core1, Stack};
 use embassy_rp::peripherals::{DMA_CH0, DMA_CH1, PIO0};
-use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
+use embassy_rp::pio;
 use static_cell::StaticCell;
 
 use crate::tasks::wifi::{WifiPeripherals, run_wifi};
@@ -19,8 +19,8 @@ use crate::tasks::display::{DisplayPeripherals, run_display};
 
 bind_interrupts!(
     struct Irqs {
-        PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
-        DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>, DmaInterruptHandler<DMA_CH1>;
+        PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
+        DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>, dma::InterruptHandler<DMA_CH1>;
     }
 );
 

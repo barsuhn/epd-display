@@ -1,21 +1,22 @@
 #![no_std]
 
 use cyw43::{JoinError, JoinOptions};
+use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
 use defmt::{debug, warn};
 use embassy_rp::Peri;
 use embassy_rp::peripherals::{PIN_23, PIN_24, PIN_25, PIN_29, PIO0};
 use embassy_rp::interrupt::typelevel::Binding;
-use embassy_rp::gpio::{Output, Level, Pin};
-use embassy_rp::pio::{Pio, Instance as PioInstance, InterruptHandler as PioInterruptHandler};
-use embassy_rp::dma::{ChannelInstance as DmaChannel, InterruptHandler as DmaInterruptHandler};
+use embassy_rp::gpio;
+use embassy_rp::pio;
+use embassy_rp::dma;
 use embassy_net::Stack;
 
 pub mod init;
 
 pub struct WifiPeripherals<DMA, IRQ> where
-    DMA: DmaChannel,
-    IRQ: Binding<DMA::Interrupt, DmaInterruptHandler<DMA>>
-       + Binding<<PIO0 as PioInstance>::Interrupt, PioInterruptHandler<PIO0>>,
+    DMA: dma::ChannelInstance,
+    IRQ: Binding<DMA::Interrupt, dma::InterruptHandler<DMA>>
+       + Binding<<PIO0 as pio::Instance>::Interrupt, pio::InterruptHandler<PIO0>>,
 {
     pub pwr_pin: Peri<'static, PIN_23>,
     pub cs_pin: Peri<'static, PIN_25>,
@@ -26,17 +27,50 @@ pub struct WifiPeripherals<DMA, IRQ> where
     pub irqs: IRQ,
 }
 
-pub struct WifiPio<PIO: PioInstance + 'static> {
-    pub cs: Output<'static>,
-    pub pio: Pio<'static, PIO>,
+pub struct WifiPio<PIO> where
+    PIO: pio::Instance + 'static,
+{
+    pub cs: gpio::Output<'static>,
+    pub dio_pin: Peri<'static, PIN_24>,
+    pub clk_pin: Peri<'static, PIN_29>,
+    pub pio: pio::Pio<'static, PIO>,
+    pub dma: dma::Channel<'static>,
 }
 
-impl<PIO: PioInstance + 'static> WifiPio<PIO> {
-    pub fn new(cs_pin: Peri<'static, impl Pin>, pio_instance: Peri<'static, PIO>, irq: impl Binding<PIO::Interrupt, PioInterruptHandler<PIO>>) -> Self {
+impl<PIO: pio::Instance + 'static> WifiPio<PIO>
+{
+    pub fn new<DMA>
+    (
+        cs_pin: Peri<'static, PIN_25>,
+        dio_pin: Peri<'static, PIN_24>,
+        clk_pin: Peri<'static, PIN_29>,
+        pio: Peri<'static, PIO>,
+        dma: Peri<'static, DMA>,
+        irqs: impl Binding<PIO::Interrupt, pio::InterruptHandler<PIO>>
+                 + Binding<DMA::Interrupt, dma::InterruptHandler<DMA>>
+                 + 'static
+    ) -> Self where
+        DMA: dma::ChannelInstance,
+    {
         WifiPio {
-            cs: Output::new(cs_pin, Level::High),
-            pio: Pio::new(pio_instance, irq)
+            cs: gpio::Output::new(cs_pin, gpio::Level::High),
+            dio_pin,
+            clk_pin,
+            pio: pio::Pio::new(pio, irqs),
+            dma: dma::Channel::new(dma, irqs),
         }
+    }
+
+    pub fn pio_spi(mut self) -> PioSpi<'static, PIO, 0> {
+        PioSpi::new(
+            &mut self.pio.common,
+            self.pio.sm0,
+            DEFAULT_CLOCK_DIVIDER,
+            self.pio.irq0,
+            self.cs,
+            self.dio_pin,
+            self.clk_pin,
+            self.dma)
     }
 }
 

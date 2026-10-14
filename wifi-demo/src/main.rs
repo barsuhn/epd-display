@@ -4,16 +4,15 @@
 use {defmt_rtt as _, panic_probe as _};
 
 use defmt::{info,warn};
-use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
 use embassy_executor::Executor;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::Config;
 use embassy_rp::bind_interrupts;
 use embassy_rp::gpio::{Output, Level};
-use embassy_rp::dma::{Channel as DmaChannel, InterruptHandler as DmaInterruptHandler};
+use embassy_rp::dma;
 use embassy_rp::peripherals::{DMA_CH0, PIO0};
-use embassy_rp::pio::InterruptHandler as PioInterruptHandler;
+use embassy_rp::pio;
 use embassy_time::Duration;
 use heapless::{String, Vec};
 use serde::Deserialize;
@@ -28,27 +27,10 @@ const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 
 bind_interrupts!(
     struct Irqs {
-        PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
-        DMA_IRQ_0 => DmaInterruptHandler<DMA_CH0>;
+        PIO0_IRQ_0 => pio::InterruptHandler<PIO0>;
+        DMA_IRQ_0 => dma::InterruptHandler<DMA_CH0>;
     }
 );
-
-macro_rules! wifi_spi {
-    ($wifi_pio:expr, $dio_pin:expr, $clk_pin:expr, $dma_channel:expr) => {
-        {
-            PioSpi::new(
-                &mut $wifi_pio.pio.common,
-                $wifi_pio.pio.sm0,
-                DEFAULT_CLOCK_DIVIDER,
-                $wifi_pio.pio.irq0,
-                $wifi_pio.cs,
-                $dio_pin,
-                $clk_pin,
-                $dma_channel,
-            )
-        }
-    }
-}
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
@@ -79,14 +61,19 @@ fn main() -> ! {
 async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0, Irqs>) {
     unsafe { paint_stack("wifi"); }
 
-    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, peripherals.irqs);
-    let dma = DmaChannel::new(peripherals.dma, peripherals.irqs);
-    let wifi_spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, dma);
+    let wifi_pio = WifiPio::new(
+        peripherals.cs_pin,
+        peripherals.dio_pin,
+        peripherals.clk_pin,
+        peripherals.pio,
+        peripherals.dma,
+        peripherals.irqs);
+    let spi = wifi_pio.pio_spi();
     let pwr = Output::new(peripherals.pwr_pin, Level::Low);
 
     let mut driver = {
         let config = Config::dhcpv4(Default::default());
-        init_wifi(&spawner, pwr, wifi_spi, config).await
+        init_wifi(&spawner, pwr, spi, config).await
     };
 
     if let Err(err) =  driver.connect(WIFI_NETWORK, WIFI_PASSWORD).await {

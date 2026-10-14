@@ -1,13 +1,11 @@
 use defmt::{trace, debug, info, warn};
 use core::fmt::Write;
 use embassy_executor::Spawner;
-use embassy_rp::gpio::{Level, Output};
-use embassy_rp::dma::Channel as DmaChannel;
+use embassy_rp::gpio;
 use embassy_rp::peripherals::DMA_CH0;
 use embassy_net::Config;
 use embassy_net::tcp::TcpSocket;
 use embassy_time::Duration;
-use cyw43_pio::{PioSpi, DEFAULT_CLOCK_DIVIDER};
 use heapless::{String, Vec};
 use serde::Deserialize;
 
@@ -19,24 +17,6 @@ use pico_wifi::init::init_wifi;
 use crate::Irqs;
 use crate::data::display_cmd::{DisplayCmd, TextLine, TextPanelContent, DISPLAY_CMD_READY, SHARED_DISPLAY_CMD};
 
-macro_rules! wifi_spi {
-    ($wifi_pio:expr, $dio_pin:expr, $clk_pin:expr, $dma_channel:expr) => {
-        {
-            PioSpi::new(
-                &mut $wifi_pio.pio.common,
-                $wifi_pio.pio.sm0,
-                DEFAULT_CLOCK_DIVIDER,
-                $wifi_pio.pio.irq0,
-                $wifi_pio.cs,
-                $dio_pin,
-                $clk_pin,
-                $dma_channel,
-            )
-        }
-    }
-}
-
-
 const WIFI_NETWORK: &str = dotenvy_macro::dotenv!("WIFI_NETWORK");
 const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 
@@ -44,11 +24,15 @@ const WIFI_PASSWORD: &str = dotenvy_macro::dotenv!("WIFI_PASSWORD");
 pub async fn run_wifi(spawner: Spawner, peripherals: WifiPeripherals<DMA_CH0, Irqs>) {
     trace!("Wifi initialization");
 
-    let mut wifi_pio = WifiPio::new(peripherals.cs_pin, peripherals.pio, peripherals.irqs);
-    let dma = DmaChannel::new(peripherals.dma, peripherals.irqs);
-    let spi = wifi_spi!(wifi_pio, peripherals.dio_pin, peripherals.clk_pin, dma);
-    let pwr = Output::new(peripherals.pwr_pin, Level::Low);
-
+    let wifi_pio = WifiPio::new(
+        peripherals.cs_pin,
+        peripherals.dio_pin,
+        peripherals.clk_pin,
+        peripherals.pio,
+        peripherals.dma,
+        peripherals.irqs);
+    let spi = wifi_pio.pio_spi();
+    let pwr = gpio::Output::new(peripherals.pwr_pin, gpio::Level::Low);
     let config = Config::dhcpv4(Default::default());
     let mut driver = init_wifi(&spawner, pwr, spi, config).await;
 

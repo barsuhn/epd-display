@@ -19,6 +19,7 @@ type Cyw43Runner = cyw43::Runner<'static, SpiBus<Output<'static>, WifiSpi>>;
 
 pub async fn init_wifi(spawner: &Spawner, pwr: Output<'static>, spi: WifiSpi, config: Config) -> WifiDriver {
     static CYW43_STATE: StaticCell<cyw43::State> = StaticCell::new();
+    
     let state = CYW43_STATE.init(cyw43::State::new());
     let (net_device, mut control, runner) = cyw43::new(state, pwr, spi, FIRMWARE, NVRAM).await;
 
@@ -29,6 +30,7 @@ pub async fn init_wifi(spawner: &Spawner, pwr: Output<'static>, spi: WifiSpi, co
 
     // This allocates memory for 3 sockets. DHCP and DNS each require one socket.
     static STACK_RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    
     let mut rng = RoscRng;
     let seed = rng.next_u64();
     let (stack, runner) = embassy_net::new(net_device, config, STACK_RESOURCES.init(StackResources::new()), seed);
